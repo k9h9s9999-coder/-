@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Meta Ray-Ban YouTube HUD with Korean/English Keyboard</title>
+<title>Meta Ray-Ban YouTube HUD with Korean Automaton Keyboard</title>
 <style>
 :root {
 --hud-green: #00FF66;
 --hud-cyan: #00E5FF;
 --hud-bg: #000000;
 --hud-card: #111111;
---hud-highlight: #ff0055;
+--hud-red: #FF0055;
 }
 
 * { box-sizing: border-box; }
@@ -30,30 +30,37 @@ overflow: hidden;
 user-select: none;
 }
 
-/* HUD Viewport */
+/* Meta Ray-Ban Glass HUD Optical Viewport */
 #hud-viewport {
 width: 100%;
 max-width: 500px;
-height: 68vh;
+height: 70vh;
 margin-top: 10px;
-border: 1px solid rgba(0, 255, 102, 0.2);
-border-radius: 16px;
-background: radial-gradient(circle, rgba(0, 255, 102, 0.03) 0%, rgba(0,0,0,1) 85%);
+border: 1px solid rgba(0, 255, 102, 0.25);
+border-radius: 18px;
+background: radial-gradient(circle, rgba(0, 255, 102, 0.04) 0%, rgba(0,0,0,1) 85%);
 display: flex;
 flex-direction: column;
 padding: 12px;
 position: relative;
 }
 
-/* Search Bar Input */
-.search-box {
+/* Search Box Bar */
+.search-box-container {
 display: flex;
 align-items: center;
 background: #111;
 border: 2px solid var(--hud-cyan);
-border-radius: 10px;
-padding: 8px 12px;
-margin-bottom: 10px;
+border-radius: 12px;
+padding: 6px 12px;
+margin-bottom: 8px;
+cursor: pointer;
+box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+}
+
+.search-box-container.active {
+border-color: var(--hud-green);
+box-shadow: 0 0 12px rgba(0, 255, 102, 0.4);
 }
 
 .search-input {
@@ -64,58 +71,67 @@ font-size: 18px;
 font-weight: bold;
 width: 100%;
 outline: none;
+pointer-events: none; /* Container click handled */
 }
 
-.search-input::placeholder { color: #555; }
+.search-input::placeholder { color: #666; }
 
-/* YouTube Results Grid */
+.btn-badge {
+font-size: 11px;
+background: rgba(0, 229, 255, 0.15);
+color: var(--hud-cyan);
+padding: 4px 8px;
+border-radius: 6px;
+font-weight: bold;
+margin-left: 6px;
+white-space: nowrap;
+}
+
+/* YouTube Results List */
 #results-list {
 display: flex;
 flex-direction: column;
-gap: 8px;
+gap: 6px;
 overflow-y: auto;
-max-height: 180px;
-margin-bottom: 10px;
+max-height: 160px;
+margin-bottom: 8px;
 }
 
-.video-item {
+.video-card {
 display: flex;
+align-items: center;
 gap: 10px;
 background: #111;
 border: 1px solid #333;
 border-radius: 8px;
-padding: 6px;
+padding: 6px 10px;
 cursor: pointer;
+transition: all 0.2s;
 }
 
-.video-item.active {
+.video-card.selected {
 border-color: var(--hud-green);
-box-shadow: 0 0 10px rgba(0, 255, 102, 0.4);
-background: #1a2e22;
+background: #14281c;
+box-shadow: 0 0 10px rgba(0, 255, 102, 0.3);
 }
 
 .video-thumb {
-width: 60px;
-height: 40px;
-background: #333;
-border-radius: 4px;
+width: 36px;
+height: 36px;
+background: #222;
+border-radius: 50%;
 display: flex;
 align-items: center;
 justify-content: center;
-font-size: 20px;
-}
-
-.video-info {
-display: flex;
-flex-direction: column;
-justify-content: center;
-overflow: hidden;
+font-size: 14px;
+color: var(--hud-green);
+flex-shrink: 0;
 }
 
 .video-title {
 font-size: 13px;
 color: #FFF;
-font-weight: 600;
+font-weight: bold;
 white-space: nowrap;
 overflow: hidden;
 text-overflow: ellipsis;
@@ -126,14 +142,14 @@ font-size: 11px;
 color: #888;
 }
 
-/* Virtual Keyboard */
+/* Virtual Keyboard Grid */
 #virtual-keyboard {
 display: flex;
 flex-direction: column;
 gap: 4px;
 background: #080808;
 padding: 8px;
-border-radius: 10px;
+border-radius: 12px;
 border: 1px solid #222;
 margin-top: auto;
 }
@@ -149,18 +165,26 @@ background: #1c1c1c;
 color: #FFF;
 border: 1px solid #333;
 border-radius: 6px;
-padding: 8px 0;
+padding: 10px 0;
 flex: 1;
 text-align: center;
-font-size: 13px;
+font-size: 14px;
 font-weight: bold;
+cursor: pointer;
+transition: all 0.15s;
+}
+
+.kb-key:active, .kb-key.pressed {
+background: var(--hud-green) !important;
+color: #000 !important;
+border-color: var(--hud-green) !important;
 }
 
 .kb-key.focused {
-background: var(--hud-green);
-color: #000;
+background: #2a3a30;
+color: var(--hud-green);
 border-color: var(--hud-green);
-box-shadow: 0 0 8px var(--hud-green);
+box-shadow: 0 0 8px rgba(0, 255, 102, 0.5);
 }
 
 .kb-key.wide { flex: 2; }
@@ -171,17 +195,18 @@ box-shadow: 0 0 8px var(--hud-green);
 position: absolute;
 top: 0; left: 0; right: 0; bottom: 0;
 background: #000;
-border-radius: 16px;
+border-radius: 18px;
 display: none;
 flex-direction: column;
 align-items: center;
 justify-content: center;
-z-index: 10;
+z-index: 20;
+padding: 10px;
 }
 
 #player-frame {
 width: 100%;
-height: 75%;
+height: 80%;
 border: none;
 border-radius: 8px;
 }
@@ -191,7 +216,7 @@ border-radius: 8px;
 width: 100%;
 max-width: 500px;
 background: #111;
-padding: 12px;
+padding: 10px;
 border-top-left-radius: 16px;
 border-top-right-radius: 16px;
 display: flex;
@@ -204,6 +229,7 @@ display: flex;
 justify-content: space-between;
 font-size: 12px;
 color: var(--hud-cyan);
+padding: 0 4px;
 }
 
 .dpad-grid {
@@ -230,13 +256,14 @@ button:active { background: var(--hud-green); color: #000; }
 
 <!-- HUD Viewport -->
 <div id="hud-viewport">
-<div class="search-box">
-<span style="margin-right: 8px;">🔍</span>
-<input type="text" id="search-input" class="search-input" placeholder="검색어를 입력하세요..." readonly>
-<span id="lang-indicator" style="font-size:12px; color:var(--hud-cyan); font-weight:bold;">한글</span>
+<div class="search-box-container active" id="search-container" onclick="focusKeyboardMode()">
+<span style="margin-right: 6px;">🔍</span>
+<input type="text" id="search-input" class="search-input" placeholder="터치하거나 아래 방향키로 입력..." readonly>
+<span class="btn-badge" id="lang-indicator" onclick="toggleLanguage(event)">한글</span>
+<span class="btn-badge" style="background:rgba(255,0,85,0.2); color:var(--hud-red);" onclick="clearSearch(event)">Clear</span>
 </div>
 
-<!-- YouTube Search Results -->
+<!-- YouTube Search Results List -->
 <div id="results-list"></div>
 
 <!-- Virtual Keyboard -->
@@ -245,16 +272,16 @@ button:active { background: var(--hud-green); color: #000; }
 <!-- Video Player Overlay -->
 <div id="player-overlay">
 <iframe id="player-frame" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-<div style="margin-top:10px; color:#FFF; font-weight:bold;" id="playing-title">비디오 재생 중...</div>
-<button onclick="closePlayer()" style="margin-top:10px; background:#ff0055; border:none; padding:8px 16px;">❌ 영상 닫기 (손목 털기)</button>
+<div style="margin-top:8px; color:#FFF; font-weight:bold; font-size:14px;" id="playing-title">영상 재생 중...</div>
+<button onclick="closePlayer()" style="margin-top:8px; background:var(--hud-red); border:none; width:100%;">❌ 영상 닫기 (손목 털기 제스처)</button>
 </div>
 </div>
 
-<!-- Wristband Gesture Controller Panel -->
+<!-- Wristband Controller Simulator -->
 <div id="controller-panel">
 <div class="status-bar">
-<span id="ble-status">📡 BLE 손목밴드: 대기 중</span>
-<span id="mode-status">입력 모드: 키보드 컨트롤</span>
+<span id="ble-status">📡 BLE 손목밴드: 연결 대기</span>
+<span id="mode-status">제어 모드: 가상 키보드 입력</span>
 </div>
 
 <div class="dpad-grid">
@@ -264,14 +291,14 @@ button:active { background: var(--hud-green); color: #000; }
 <button onclick="moveCursor('LEFT')">◀ 왼쪽</button>
 <button onclick="pressSelect()" style="background:var(--hud-green); color:#000;">🎯 선택</button>
 <button onclick="moveCursor('RIGHT')">오른쪽 ▶</button>
-<button onclick="toggleMode()">🔄 모드 전환</button>
+<button onclick="toggleControlMode()">🔄 모드 전환</button>
 <button onclick="moveCursor('DOWN')">▼ 아래로</button>
 <button onclick="connectBLE()" style="background:#0055FF;">📡 BLE 연동</button>
 </div>
 </div>
 
 <script>
-// 키보드 레이아웃 정의 (한글 두벌식 / 영어 QWERTY)
+// 키보드 레이아웃
 const layouts = {
 KO: [
 ['ㅂ', 'ㅈ', 'ㄷ', 'ㄱ', 'ㅅ', 'ㅛ', 'ㅕ', 'ㅑ', 'ㅐ', 'ㅔ'],
@@ -287,32 +314,119 @@ EN: [
 ]
 };
 
-// 한글 조합 엔진용 초성/중성/종성 데이터
-const CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
-const JUNG = ["ㅏ","ㅐ","ㅑ","ㅖ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"];
-const JONG = ["", "ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
-
-const koMap = { 'ㅂ':'q','ㅈ':'w','ㄷ':'e','ㄱ':'r','ㅅ':'t','ㅛ':'y','ㅕ':'u','ㅑ':'i','ㅐ':'o','ㅔ':'p','ㅁ':'a','ㄴ':'s','ㅇ':'d','ㄹ':'f','ㅎ':'g','ㅗ':'h','ㅓ':'j','ㅏ':'k','ㅣ':'l','ㅋ':'z','ㅌ':'x','ㅍ':'c','ㅊ':'v','ㅠ':'b','ㅜ':'n','ㅡ':'m' };
-
-// 예시 유튜브 비디오 데이터
-const mockVideos = [
-{ title: "Meta Ray-Ban Display 스마트 글래스 리뷰", channel: "테크Lab", id: "dQw4w9WgXcQ" },
-{ title: "2026 차세대 wearable 디바이스 동향", channel: "미래IT", id: "3JZ_D3ELwOQ" },
-{ title: "손목 제스처 컨트롤러 BLE 제작 튜토리얼", channel: "임베디드Maker", id: "L_LUpnjgPso" },
-{ title: "K-POP 최신 인기곡 메들리 4K HUD View", channel: "MusicBox", id: "fJ9rUzIMcZQ" }
- ];
+// 유튜브 비디오 Mock 데이터
+const allVideos = [
+{ title: "Meta Ray-Ban Display 스마트 글래스 리뷰", channel: "테크Lab", id: "dQw4w9WgXcQ", tags: ["메타", "스마트", "글래스", "레이밴", "meta"] },
+{ title: "2026 차세대 wearable 디바이스 동향", channel: "미래IT", id: "3JZ_D3ELwOQ", tags: ["웨어러블", "디바이스", "2026"] },
+{ title: "손목 제스처 컨트롤러 BLE 제작 튜토리얼", channel: "임베디드Maker", id: "L_LUpnjgPso", tags: ["손목", "컨트롤러", "ble", "제스처"] },
+{ title: "K-POP 최신 인기곡 메들리 4K HUD View", channel: "MusicBox", id: "fJ9rUzIMcZQ", tags: ["kpop", "노래", "음악"] }
+];
 
 let currentLang = 'KO';
 let cursorRow = 0;
 let cursorCol = 0;
-let rawText = "";
-let controlMode = 'KEYBOARD'; // KEYBOARD or RESULTS
+let controlMode = 'KEYBOARD'; // 'KEYBOARD' | 'RESULTS'
 let selectedVideoIndex = 0;
+let filteredVideos = [...allVideos];
 
-// 가상 키보드 렌더링
+// 한글 오토마톤 (두벌식 조합 엔진)
+const CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+const JUNG = ["ㅏ","ㅐ","ㅑ","ㅖ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"];
+const JONG = ["", "ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+
+let inputLetters = [];
+
+function appendLetter(char) {
+if (char === '⌫') {
+inputLetters.pop();
+} else if (char === '공백' || char === 'SPACE') {
+inputLetters.push(' ');
+} else {
+inputLetters.push(char);
+}
+updateSearchText();
+}
+
+function updateSearchText() {
+const assembledText = assembleHangul(inputLetters);
+document.getElementById('search-input').value = assembledText;
+filterResults(assembledText);
+}
+
+// 간단 한글 조합기 알고리즘
+function assembleHangul(letters) {
+let result = '';
+let cho = -1, jung = -1, jong = -1;
+
+for (let i = 0; i < letters.length; i++) {
+const ch = letters[i];
+if (ch === ' ') {
+if (cho !== -1) {
+result += combineChar(cho, jung, jong);
+cho = jung = jong = -1;
+}
+result += ' ';
+continue;
+}
+
+const choIdx = CHO.indexOf(ch);
+const jungIdx = JUNG.indexOf(ch);
+
+if (choIdx !== -1) { // 자음 입력
+if (jung === -1) {
+if (cho !== -1) result += CHO[cho];
+cho = choIdx;
+} else if (jong === -1) {
+const jIdx = JONG.indexOf(ch);
+if (jIdx !== -1) jong = jIdx;
+else {
+result += combineChar(cho, jung, jong);
+cho = choIdx; jung = jong = -1;
+}
+} else {
+result += combineChar(cho, jung, jong);
+cho = choIdx; jung = jong = -1;
+}
+} else if (jungIdx !== -1) { // 모음 입력
+if (cho === -1) {
+result += ch;
+} else if (jung === -1) {
+jung = jungIdx;
+} else if (jong !== -1) {
+const prevJongChar = JONG[jong];
+jong = -1;
+result += combineChar(cho, jung, jong);
+cho = CHO.indexOf(prevJongChar);
+jung = jungIdx;
+} else {
+result += combineChar(cho, jung, jong);
+cho = -1; jung = jungIdx;
+}
+} else {
+if (cho !== -1) {
+result += combineChar(cho, jung, jong);
+cho = jung = jong = -1;
+}
+result += ch;
+}
+}
+
+if (cho !== -1) {
+result += combineChar(cho, jung, jong);
+}
+return result;
+}
+
+function combineChar(cho, jung, jong) {
+if (jung === -1) return CHO[cho] || '';
+if (jong === -1) jong = 0;
+return String.fromCharCode(0xAC00 + (cho * 21 + jung) * 28 + jong);
+}
+
+// 가상 키보드 UI 렌더링
 function renderKeyboard() {
-const kbContainer = document.getElementById('virtual-keyboard');
-kbContainer.innerHTML = '';
+const container = document.getElementById('virtual-keyboard');
+container.innerHTML = '';
 const currentLayout = layouts[currentLang];
 
 currentLayout.forEach((row, rIdx) => {
@@ -322,113 +436,159 @@ rowDiv.className = 'kb-row';
 row.forEach((key, cIdx) => {
 const keyDiv = document.createElement('div');
 keyDiv.className = 'kb-key';
+
 if (key === '공백' || key === 'SPACE' || key === '검색 🔍' || key === 'SEARCH 🔍') {
 keyDiv.classList.add('wide');
 }
+
 if (controlMode === 'KEYBOARD' && rIdx === cursorRow && cIdx === cursorCol) {
 keyDiv.classList.add('focused');
 }
+
 keyDiv.innerText = key;
+
+// 터치/마우스 직접 클릭 지원
+keyDiv.onclick = (e) => {
+e.stopPropagation();
+cursorRow = rIdx;
+cursorCol = cIdx;
+pressKey(key);
+};
+
 rowDiv.appendChild(keyDiv);
 });
-kbContainer.appendChild(rowDiv);
+container.appendChild(rowDiv);
 });
 }
 
-// 유튜브 결과 렌더링
+// 키 입력 로직
+function pressKey(key) {
+if (key === '한/영') {
+currentLang = currentLang === 'KO' ? 'EN' : 'KO';
+document.getElementById('lang-indicator').innerText = currentLang === 'KO' ? '한글' : 'English';
+cursorRow = 0; cursorCol = 0;
+} else if (key === '검색 🔍' || key === 'SEARCH 🔍') {
+executeSearch();
+return;
+} else {
+appendLetter(key);
+}
+renderKeyboard();
+}
+
+// 검색 실행 및 결과 목록 모드로 전환
+function executeSearch() {
+const query = document.getElementById('search-input').value;
+speakVoice(${query || '전체'} 검색 결과 목록으로 이동합니다.`);
+controlMode = 'RESULTS';
+document.getElementById('mode-status').innerText = '제어 모드: 검색 결과 선택';
+document.getElementById('search-container').classList.remove('active');
+renderResults();
+renderKeyboard();
+}
+
+// 검색어 기반 비디오 필터링
+function filterResults(query) {
+if (!query.trim()) {
+filteredVideos = [...allVideos];
+} else {
+filteredVideos = allVideos.filter(v =>
+v.title.includes(query) || v.channel.includes(query) || v.tags.some(t => t.includes(query))
+);
+}
+if (filteredVideos.length === 0) filteredVideos = [...allVideos]; // Fallback
+renderResults();
+}
+
+// 비디오 결과 목록 렌더링
 function renderResults() {
-const resultsContainer = document.getElementById('results-list');
-resultsContainer.innerHTML = '';
+const container = document.getElementById('results-list');
+container.innerHTML = '';
 
-mockVideos.forEach((vid, idx) => {
-const item = document.createElement('div');
-item.className = 'video-item';
+filteredVideos.forEach((vid, idx) => {
+const card = document.createElement('div');
+card.className = 'video-card';
 if (controlMode === 'RESULTS' && idx === selectedVideoIndex) {
-item.classList.add('active');
+card.classList.add('selected');
 }
-item.innerHTML = &lt;div class="video-thumb"&gt;▶&lt;/div&gt; &lt;div class="video-info"&gt; &lt;div class="video-title"&gt;${vid.title}</div>
+card.innerHTML = &lt;div class="video-thumb"&gt;▶&lt;/div&gt; &lt;div&gt; &lt;div class="video-title"&gt;${vid.title}</div>
 <div class="video-channel">${vid.channel}&lt;/div&gt; &lt;/div&gt;;
-item.onclick = () => playVideo(vid);
-resultsContainer.appendChild(item);
+card.onclick = () => playVideo(vid);
+container.appendChild(card);
 });
 }
 
-// 커서 이동 제어 (D-Pad / 손목밴드 신호)
-function moveCursor(direction) {
+// 커서 이동 (D-Pad / 방향키)
+function moveCursor(dir) {
 if (controlMode === 'KEYBOARD') {
 const layout = layouts[currentLang];
-if (direction === 'UP' && cursorRow > 0) cursorRow--;
-if (direction === 'DOWN' && cursorRow < layout.length - 1) cursorRow++;
-if (direction === 'LEFT' && cursorCol > 0) cursorCol--;
-if (direction === 'RIGHT' && cursorCol < layout[cursorRow].length - 1) cursorCol++;
+if (dir === 'UP' && cursorRow > 0) cursorRow--;
+if (dir === 'DOWN' && cursorRow < layout.length - 1) cursorRow++;
+if (dir === 'LEFT' && cursorCol > 0) cursorCol--;
+if (dir === 'RIGHT' && cursorCol < layout[cursorRow].length - 1) cursorCol++;
 
-// 행 변경 시 열 범위 초과 방지
 if (cursorCol >= layout[cursorRow].length) {
 cursorCol = layout[cursorRow].length - 1;
 }
 renderKeyboard();
 } else {
-if (direction === 'UP' && selectedVideoIndex > 0) selectedVideoIndex--;
-if (direction === 'DOWN' && selectedVideoIndex < mockVideos.length - 1) selectedVideoIndex++;
+if (dir === 'UP' && selectedVideoIndex > 0) selectedVideoIndex--;
+if (dir === 'DOWN' && selectedVideoIndex < filteredVideos.length - 1) selectedVideoIndex++;
 renderResults();
 }
 }
 
-// 선택 키 처리
+// 선택버튼 (D-Pad 🎯)
 function pressSelect() {
 if (controlMode === 'KEYBOARD') {
 const key = layouts[currentLang][cursorRow][cursorCol];
+pressKey(key);
+} else {
+playVideo(filteredVideos[selectedVideoIndex]);
+}
+}
 
-if (key === '한/영') {
+// 제어 모드 토글 (키보드 <-> 검색 결과)
+function toggleControlMode() {
+controlMode = controlMode === 'KEYBOARD' ? 'RESULTS' : 'KEYBOARD';
+document.getElementById('mode-status').innerText = 제어 모드:${controlMode === 'KEYBOARD' ? '가상 키보드 입력' : '검색 결과 선택'}`;
+document.getElementById('search-container').classList.toggle('active', controlMode === 'KEYBOARD');
+renderKeyboard();
+renderResults();
+}
+
+function focusKeyboardMode() {
+controlMode = 'KEYBOARD';
+document.getElementById('mode-status').innerText = '제어 모드: 가상 키보드 입력';
+document.getElementById('search-container').classList.add('active');
+renderKeyboard();
+}
+
+function toggleLanguage(e) {
+e.stopPropagation();
 currentLang = currentLang === 'KO' ? 'EN' : 'KO';
 document.getElementById('lang-indicator').innerText = currentLang === 'KO' ? '한글' : 'English';
-cursorRow = 0; cursorCol = 0;
 renderKeyboard();
-return;
 }
 
-if (key === '⌫') {
-rawText = rawText.slice(0, -1);
-} else if (key === '공백' || key === 'SPACE') {
-rawText += " ";
-} else if (key === '검색 🔍' || key === 'SEARCH 🔍') {
-speakVoice(${document.getElementById('search-input').value} 검색 결과입니다.`);
-controlMode = 'RESULTS';
-document.getElementById('mode-status').innerText = "입력 모드: 검색 결과 목록";
-renderResults();
-renderKeyboard();
-return;
-} else {
-rawText += key;
+function clearSearch(e) {
+e.stopPropagation();
+inputLetters = [];
+updateSearchText();
 }
 
-document.getElementById('search-input').value = rawText;
-} else {
-playVideo(mockVideos[selectedVideoIndex]);
-}
-}
-
-// 모드 전환 (키보드 <-> 검색 결과 목록)
-function toggleMode() {
-controlMode = controlMode === 'KEYBOARD' ? 'RESULTS' : 'KEYBOARD';
-document.getElementById('mode-status').innerText = 입력 모드:${controlMode === 'KEYBOARD' ? '키보드 컨트롤' : '검색 결과 목록'}`;
-renderKeyboard();
-renderResults();
-}
-
-// 영상 재생
+// 재생
 function playVideo(video) {
 document.getElementById('playing-title').innerText = video.title;
-document.getElementById('player-frame').src = https://www.youtube.com/embed/${video.id}?autoplay=1; document.getElementById('player-overlay').style.display = 'flex'; speakVoice(``${video.title} 영상을 재생합니다.);
+document.getElementById('player-frame').src = https://www.youtube.com/embed/${video.id}?autoplay=1; document.getElementById('player-overlay').style.display = 'flex'; speakVoice(``${video.title} 영상이 실행됩니다.);
 }
 
-// 영상 닫기
 function closePlayer() {
 document.getElementById('player-frame').src = '';
 document.getElementById('player-overlay').style.display = 'none';
 }
 
-// 음성 합성 (Web Speech)
+// TTS
 function speakVoice(text) {
 if ('speechSynthesis' in window) {
 window.speechSynthesis.cancel();
@@ -452,7 +612,7 @@ document.getElementById('ble-status').innerText = "📡 BLE 연동 취소됨";
 }
 }
 
-// 키보드 방향키 이벤트 매핑 (테스트용)
+// PC 테스트용 키보드 매핑
 window.addEventListener('keydown', (e) => {
 if (e.key === 'ArrowUp') moveCursor('UP');
 if (e.key === 'ArrowDown') moveCursor('DOWN');
@@ -460,10 +620,10 @@ if (e.key === 'ArrowLeft') moveCursor('LEFT');
 if (e.key === 'ArrowRight') moveCursor('RIGHT');
 if (e.key === 'Enter') pressSelect();
 if (e.key === 'Escape') closePlayer();
-if (e.key === 'Tab') { e.preventDefault(); toggleMode(); }
+if (e.key === 'Tab') { e.preventDefault(); toggleControlMode(); }
 });
 
-// 초기화 실행
+// 초기 시작
 renderKeyboard();
 renderResults();
 </script>
