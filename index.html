@@ -1,8 +1,387 @@
-답답함을 드려 정말 죄송합니다. 화면 높이(CSS vh 제약) 및 레이아웃 구조 때문에 키보드 영역이 아래로 밀려나 끊기거나 시각적으로 보이지 않는 문제가 발생했던 것입니다.
-JS 실행 오류와 상관없이 화면에 가상 키보드가 무조건 크게 보이도록 레이아웃을 전면 수정했습니다.
-• 개선 사항:
-A. 키보드 영역의 위치를 화면 중앙으로 끌어올리고 flex-shrink: 0을 적용하여 절대 잘리거나 숨겨지지 않도록 고정했습니다.
-B. 키보드 버튼 크기와 폰트를 대폭 확대하고 고대비 네온 테두리/배경색을 적용하여 눈에 바로 띄게 만들었습니다.
-C. 한글(두벌식)/영문 키보드가 정상 렌더링되며, 클릭/터치 시 상단 검색창에 즉시 타이핑됩니다.
-우측 상단의 [복사(Copy)] 버튼을 눌러 전체 코드를 복사하신 후 index.html로 저장해 실행해 주세요.
-<!DOCTYPE html> <html lang="ko"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <title>Meta Ray-Ban HUD YouTube Keyboard</title> <style> :root { --hud-green: #00FF66; --hud-cyan: #00E5FF; --hud-bg: #000000; --hud-key-bg: #1a1a1a; --hud-red: #FF0055; } * { box-sizing: border-box; } body { margin: 0; padding: 10px; background-color: var(--hud-bg); color: var(--hud-green); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; } /* HUD 메인 컨테이너 */ #hud-viewport { width: 100%; max-width: 480px; border: 2px solid var(--hud-green); border-radius: 16px; background: #050505; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 15px rgba(0, 255, 102, 0.2); } /* 상단 검색 디스플레이 */ .search-display { display: flex; align-items: center; background: #111; border: 2px solid var(--hud-cyan); border-radius: 10px; padding: 10px; } .search-input { background: transparent; border: none; color: #FFFFFF; font-size: 20px; font-weight: bold; width: 100%; outline: none; } .badge-btn { background: var(--hud-cyan); color: #000; font-weight: bold; padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; margin-left: 6px; white-space: nowrap; } /* 가상 키보드 영역 (절대 숨겨지지 않도록 고정) */ #keyboard-container { display: flex; flex-direction: column; gap: 6px; background: #111; padding: 10px; border-radius: 12px; border: 2px solid var(--hud-green); } .kb-row { display: flex; justify-content: center; gap: 4px; width: 100%; } .kb-key { background: var(--hud-key-bg); color: #FFFFFF; border: 1px solid #444; border-radius: 6px; padding: 14px 0; flex: 1; text-align: center; font-size: 16px; font-weight: bold; cursor: pointer; user-select: none; } .kb-key:active { background: var(--hud-green) !important; color: #000 !important; } .kb-key.focused { background: #005522; color: var(--hud-green); border-color: var(--hud-green); box-shadow: 0 0 10px var(--hud-green); } .kb-key.wide { flex: 2; background: #223322; color: var(--hud-green); } .kb-key.space { flex: 4; } .kb-key.del { background: #331111; color: var(--hud-red); } /* 비디오 검색 결과 목록 */ #results-list { display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; } .video-card { display: flex; align-items: center; gap: 10px; background: #181818; border: 1px solid #333; border-radius: 8px; padding: 8px 12px; cursor: pointer; } .video-card.selected { border-color: var(--hud-green); background: #0d2618; } .video-title { font-size: 14px; color: #FFF; font-weight: bold; } /* D-Pad 시뮬레이터 */ #dpad-panel { width: 100%; max-width: 480px; margin-top: 10px; background: #111; border-radius: 12px; padding: 10px; border: 1px solid #333; } .dpad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; } button.dpad-btn { background: #222; color: #FFF; border: 1px solid #555; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; } button.dpad-btn:active { background: var(--hud-green); color: #000; } /* 비디오 플레이어 모달 */ #player-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 16px; z-index: 100; } #player-frame { width: 100%; max-width: 500px; height: 280px; border: none; border-radius: 10px; } </style> </head> <body> <div id="hud-viewport"> <!-- 1. 검색 입력창 --> <div class="search-display"> <span style="margin-right: 8px; font-size: 18px;">🔍</span> <input type="text" id="search-input" class="search-input" placeholder="키보드를 터치하세요..." readonly> <span class="badge-btn" id="lang-btn" onclick="toggleLanguage()">한글</span> <span class="badge-btn" style="background:var(--hud-red); color:#fff;" onclick="clearInput()">Clear</span> </div> <!-- 2. 가상 키보드 (항상 표출) --> <div id="keyboard-container"></div> <!-- 3. 검색 결과 목록 --> <div id="results-list"></div> </div> <!-- 손목밴드 D-Pad 제어기 --> <div id="dpad-panel"> <div style="font-size:12px; color:var(--hud-cyan); margin-bottom:8px; text-align:center;" id="status-text"> 제어 모드: 가상 키보드 입력 (방향키로 이동 가능) </div> <div class="dpad-grid"> <div></div> <button class="dpad-btn" onclick="moveCursor('UP')">▲ 위</button> <div></div> <button class="dpad-btn" onclick="moveCursor('LEFT')">◀ 왼</button> <button class="dpad-btn" onclick="pressSelect()" style="background:var(--hud-green); color:#000;">🎯 선택</button> <button class="dpad-btn" onclick="moveCursor('RIGHT')">오른 ▶</button> <button class="dpad-btn" onclick="toggleMode()">🔄 모드전환</button> <button class="dpad-btn" onclick="moveCursor('DOWN')">▼ 아래</button> <button class="dpad-btn" onclick="executeSearch()" style="background:#0055FF;">🔍 검색</button> </div> </div> <!-- 비디오 플레이어 --> <div id="player-overlay"> <iframe id="player-frame" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe> <div style="margin-top:12px; color:#FFF; font-weight:bold;" id="player-title"></div> <button onclick="closePlayer()" style="margin-top:12px; background:var(--hud-red); color:#FFF; border:none; padding:10px 20px; border-radius:8px; font-weight:bold; width:100%; max-width:500px;">❌ 창 닫기</button> </div> <script> // 키보드 배열 const layouts = { KO: [ ['ㅂ', 'ㅈ', 'ㄷ', 'ㄱ', 'ㅅ', 'ㅛ', 'ㅕ', 'ㅑ', 'ㅐ', 'ㅔ'], ['ㅁ', 'ㄴ', 'ㅇ', 'ㄹ', 'ㅎ', 'ㅗ', 'ㅓ', 'ㅏ', 'ㅣ'], ['ㅋ', 'ㅌ', 'ㅍ', 'ㅊ', 'ㅠ', 'ㅜ', 'ㅡ', '⌫'], ['공백', '검색 🔍'] ], EN: [ ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'], ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'], ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫'], ['SPACE', 'SEARCH 🔍'] ] }; const videos = [ { title: "Meta Ray-Ban Display 스마트 글래스 리뷰", id: "dQw4w9WgXcQ" }, { title: "2026 차세대 wearable 디바이스 동향", id: "3JZ_D3ELwOQ" }, { title: "손목 제스처 컨트롤러 BLE 제작 튜토리얼", id: "L_LUpnjgPso" }, { title: "K-POP 최신 인기곡 메들리 4K HUD View", id: "fJ9rUzIMcZQ" } ]; let currentLang = 'KO'; let cursorRow = 0; let cursorCol = 0; let controlMode = 'KEYBOARD'; // 'KEYBOARD' | 'RESULTS' let selectedVideoIndex = 0; let filteredVideos = [...videos]; const inputEl = document.getElementById('search-input'); // 키보드 화면 렌더링 (호출 즉시 무조건 생성) function renderKeyboard() { const container = document.getElementById('keyboard-container'); container.innerHTML = ''; const layout = layouts[currentLang]; layout.forEach((row, rIdx) => { const rowDiv = document.createElement('div'); rowDiv.className = 'kb-row'; row.forEach((key, cIdx) => { const keyEl = document.createElement('div'); keyEl.className = 'kb-key'; if (key === '⌫') keyEl.classList.add('del'); if (key === '공백' || key === 'SPACE' || key === '검색 🔍' || key === 'SEARCH 🔍') { keyEl.classList.add('wide'); } if (controlMode === 'KEYBOARD' && rIdx === cursorRow && cIdx === cursorCol) { keyEl.classList.add('focused'); } keyEl.innerText = key; // 터치 및 클릭 이벤트 keyEl.onclick = () => { cursorRow = rIdx; cursorCol = cIdx; handleKeyPress(key); }; rowDiv.appendChild(keyEl); }); container.appendChild(rowDiv); }); } // 키 눌림 처리 function handleKeyPress(key) { if (key === '⌫') { inputEl.value = inputEl.value.slice(0, -1); } else if (key === '공백' || key === 'SPACE') { inputEl.value += ' '; } else if (key === '검색 🔍' || key === 'SEARCH 🔍') { executeSearch(); return; } else { inputEl.value += key; } filterVideos(inputEl.value); renderKeyboard(); } function clearInput() { inputEl.value = ''; filterVideos(''); } function toggleLanguage() { currentLang = currentLang === 'KO' ? 'EN' : 'KO'; document.getElementById('lang-btn').innerText = currentLang === 'KO' ? '한글' : 'English'; cursorRow = 0; cursorCol = 0; renderKeyboard(); } function executeSearch() { controlMode = 'RESULTS'; document.getElementById('status-text').innerText = '제어 모드: 검색 결과 목록 (방향키로 선택)'; renderResults(); renderKeyboard(); } function filterVideos(query) { if (!query.trim()) { filteredVideos = [...videos]; } else { filteredVideos = videos.filter(v => v.title.includes(query)); } if (filteredVideos.length === 0) filteredVideos = [...videos]; renderResults(); } function renderResults() { const container = document.getElementById('results-list'); container.innerHTML = ''; filteredVideos.forEach((vid, idx) => { const card = document.createElement('div'); card.className = 'video-card'; if (controlMode === 'RESULTS' && idx === selectedVideoIndex) { card.classList.add('selected'); } card.innerHTML = `<span style="color:var(--hud-green);">▶</span> <div class="video-title">${vid.title}</div>`; card.onclick = () => playVideo(vid); container.appendChild(card); }); } function moveCursor(dir) { if (controlMode === 'KEYBOARD') { const layout = layouts[currentLang]; if (dir === 'UP' && cursorRow > 0) cursorRow--; if (dir === 'DOWN' && cursorRow < layout.length - 1) cursorRow++; if (dir === 'LEFT' && cursorCol > 0) cursorCol--; if (dir === 'RIGHT' && cursorCol < layout[cursorRow].length - 1) cursorCol++; if (cursorCol >= layout[cursorRow].length) cursorCol = layout[cursorRow].length - 1; renderKeyboard(); } else { if (dir === 'UP' && selectedVideoIndex > 0) selectedVideoIndex--; if (dir === 'DOWN' && selectedVideoIndex < filteredVideos.length - 1) selectedVideoIndex++; renderResults(); } } function pressSelect() { if (controlMode === 'KEYBOARD') { const key = layouts[currentLang][cursorRow][cursorCol]; handleKeyPress(key); } else { playVideo(filteredVideos[selectedVideoIndex]); } } function toggleMode() { controlMode = controlMode === 'KEYBOARD' ? 'RESULTS' : 'KEYBOARD'; document.getElementById('status-text').innerText = `제어 모드: ${controlMode === 'KEYBOARD' ? '가상 키보드 입력' : '검색 결과 목록'}`; renderKeyboard(); renderResults(); } function playVideo(vid) { document.getElementById('player-title').innerText = vid.title; document.getElementById('player-frame').src = `https://www.youtube.com/embed/${vid.id}?autoplay=1`; document.getElementById('player-overlay').style.display = 'flex'; } function closePlayer() { document.getElementById('player-frame').src = ''; document.getElementById('player-overlay').style.display = 'none'; } // 키보드 방향키 매핑 window.addEventListener('keydown', (e) => { if (e.key === 'ArrowUp') moveCursor('UP'); if (e.key === 'ArrowDown') moveCursor('DOWN'); if (e.key === 'ArrowLeft') moveCursor('LEFT'); if (e.key === 'ArrowRight') moveCursor('RIGHT'); if (e.key === 'Enter') pressSelect(); if (e.key === 'Escape') closePlayer(); }); // 즉시 실행 renderKeyboard(); renderResults(); </script> </body> </html>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>화면 가상 키보드</title>
+<style>
+* {
+box-sizing: border-box;
+margin: 0;
+padding: 0;
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+background-color: #0d0e12;
+color: #ffffff;
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 16px;
+}
+
+.container {
+width: 100%;
+max-width: 600px;
+display: flex;
+flex-direction: column;
+gap: 16px;
+}
+
+/* 상단 검색창 영역 */
+.display-box {
+background: #181a20;
+border: 2px solid #00ff66;
+border-radius: 12px;
+padding: 12px 16px;
+display: flex;
+align-items: center;
+gap: 10px;
+box-shadow: 0 0 15px rgba(0, 255, 102, 0.2);
+}
+
+.display-box .icon {
+font-size: 20px;
+}
+
+.search-input {
+width: 100%;
+background: transparent;
+border: none;
+outline: none;
+color: #ffffff;
+font-size: 22px;
+font-weight: bold;
+}
+
+.search-input::placeholder {
+color: #666;
+}
+
+/* 키보드 컨테이너 (무조건 노출) */
+.keyboard {
+background: #181a20;
+border: 2px solid #00e5ff;
+border-radius: 16px;
+padding: 12px;
+display: flex;
+flex-direction: column;
+gap: 8px;
+box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+}
+
+.kb-row {
+display: flex;
+justify-content: center;
+gap: 6px;
+width: 100%;
+}
+
+.key {
+flex: 1;
+height: 54px;
+background: #262932;
+color: #ffffff;
+border: 1px solid #3a3f4d;
+border-radius: 8px;
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 18px;
+font-weight: bold;
+cursor: pointer;
+user-select: none;
+transition: background 0.1s, transform 0.1s;
+}
+
+.key:active {
+background: #00ff66 !important;
+color: #000000 !important;
+transform: scale(0.96);
+}
+
+.key.special {
+background: #323745;
+color: #00e5ff;
+}
+
+.key.delete {
+background: #4a2428;
+color: #ff4d4d;
+}
+
+.key.wide {
+flex: 2;
+}
+
+.key.space {
+flex: 4;
+background: #2a303c;
+}
+
+.key.enter {
+flex: 2;
+background: #00ff66;
+color: #000000;
+font-weight: 800;
+}
+
+/* 결과 목록 영역 */
+.results-box {
+background: #181a20;
+border: 1px solid #2a2e3d;
+border-radius: 12px;
+padding: 12px;
+max-height: 200px;
+overflow-y: auto;
+}
+
+.results-header {
+font-size: 13px;
+color: #00e5ff;
+margin-bottom: 8px;
+font-weight: bold;
+}
+
+.result-item {
+padding: 10px 12px;
+background: #21242e;
+border-radius: 8px;
+margin-bottom: 6px;
+font-size: 15px;
+color: #ddd;
+cursor: pointer;
+}
+
+.result-item:hover {
+background: #2c3140;
+color: #00ff66;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+<!-- 입력창 -->
+<div class="display-box">
+<span class="icon">🔍</span>
+<input type="text" id="text-display" class="search-input" placeholder="아래 가상 키보드로 입력하세요..." readonly>
+</div>
+
+<!-- 가상 키보드 본체 -->
+<div class="keyboard" id="keyboard-body"></div>
+
+<!-- 검색 결과 예시 -->
+<div class="results-box">
+<div class="results-header">💡 검색 결과</div>
+<div id="results-list">
+<div class="result-item">검색어를 입력해보세요.</div>
+</div>
+</div>
+</div>
+
+<script>
+// 한글 자음/모음 조합 엔진
+const CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+const JUNG = ["ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ"];
+const JONG = ["", "ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+
+// 복합 이중 자모 매핑
+const DOUBLE_JUNG = {
+'ㅗㅏ': 'ㅘ', 'ㅗㅐ': 'ㅙ', 'ㅗㅣ': 'ㅚ',
+'ㅜㅓ': 'ㅝ', 'ㅜㅔ': 'ㅞ', 'ㅜㅣ': 'ㅟ', 'ㅡㅣ': 'ㅢ'
+};
+
+const DOUBLE_JONG = {
+'ㄱㅅ': 'ㄳ', 'ㄴㅈ': 'ㄵ', 'ㄴㅎ': 'ㄶ', 'ㄹㄱ': 'ㄺ',
+'ㄹㅁ': 'ㄻ', 'ㄹㅂ': 'ㄼ', 'ㄹㅅ': 'ㄽ', 'ㄹㅌ': 'ㄾ',
+'ㄹㅍ': 'ㄿ', 'ㄹㅎ': 'ㅀ', 'ㅂㅅ': 'ㅄ'
+};
+
+let inputLetters = [];
+let currentLang = 'KO';
+
+const layouts = {
+KO: [
+['ㅂ', 'ㅈ', 'ㄷ', 'ㄱ', 'ㅅ', 'ㅛ', 'ㅕ', 'ㅑ', 'ㅐ', 'ㅔ'],
+['ㅁ', 'ㄴ', 'ㅇ', 'ㄹ', 'ㅎ', 'ㅗ', 'ㅓ', 'ㅏ', 'ㅣ'],
+['한/영', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅊ', 'ㅠ', 'ㅜ', 'ㅡ', '⌫'],
+['CLEAR', 'SPACE', '검색 🔍']
+],
+EN: [
+['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+['한/영', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫'],
+['CLEAR', 'SPACE', 'SEARCH 🔍']
+]
+};
+
+// 한글 타이핑 조합 알고리즘
+function assembleHangul(letters) {
+let result = '';
+let state = 0; // 0: 빈상태, 1: 초성, 2: 중성, 3: 종성
+let c = -1, j = -1, jo = -1;
+let rawDoubleJung = '', rawDoubleJong = '';
+
+for (let l of letters) {
+if (CHO.includes(l) && !JUNG.includes(l)) { // 자음 입력
+if (state === 0) {
+c = CHO.indexOf(l);
+state = 1;
+} else if (state === 1) {
+result += String.fromCharCode(0xAC00 + (c * 21 * 28));
+c = CHO.indexOf(l);
+} else if (state === 2) {
+jo = JONG.indexOf(l);
+if (jo !== -1) {
+state = 3;
+rawDoubleJong = l;
+} else {
+result += makeChar(c, j, 0);
+c = CHO.indexOf(l);
+j = -1;
+state = 1;
+}
+} else if (state === 3) {
+let combined = rawDoubleJong + l;
+if (DOUBLE_JONG[combined]) {
+jo = JONG.indexOf(DOUBLE_JONG[combined]);
+rawDoubleJong = combined;
+} else {
+result += makeChar(c, j, jo);
+c = CHO.indexOf(l);
+j = -1; jo = -1;
+state = 1;
+}
+}
+} else if (JUNG.includes(l)) { // 모음 입력
+if (state === 0) {
+result += l;
+} else if (state === 1) {
+j = JUNG.indexOf(l);
+rawDoubleJung = l;
+state = 2;
+} else if (state === 2) {
+let combined = rawDoubleJung + l;
+if (DOUBLE_JUNG[combined]) {
+j = JUNG.indexOf(DOUBLE_JUNG[combined]);
+rawDoubleJung = combined;
+} else {
+result += makeChar(c, j, 0);
+c = -1; j = JUNG.indexOf(l);
+rawDoubleJung = l;
+state = 0;
+result += l;
+}
+} else if (state === 3) {
+// 종성을 다음 음절의 초성으로 분리
+let prevJong = rawDoubleJong;
+if (prevJong.length === 2) {
+let firstJong = prevJong[0];
+let secondJong = prevJong[1];
+result += makeChar(c, j, JONG.indexOf(DOUBLE_JONG[prevJong] || firstJong));
+c = CHO.indexOf(secondJong);
+} else {
+result += makeChar(c, j, 0);
+c = CHO.indexOf(prevJong);
+}
+j = JUNG.indexOf(l);
+jo = -1;
+rawDoubleJung = l;
+state = 2;
+}
+} else { // 기타 문구 (공백, 영문 등)
+if (state !== 0) {
+result += makeChar(c, j, jo < 0 ? 0 : jo);
+c = -1; j = -1; jo = -1; state = 0;
+}
+result += l;
+}
+}
+
+if (state === 1) result += CHO[c];
+else if (state === 2) result += makeChar(c, j, 0);
+else if (state === 3) result += makeChar(c, j, jo);
+
+return result;
+}
+
+function makeChar(c, j, jo) {
+if (c === -1 || j === -1) return '';
+return String.fromCharCode(0xAC00 + (c * 21 * 28) + (j * 28) + jo);
+}
+
+// 키보드 생성
+function renderKeyboard() {
+const body = document.getElementById('keyboard-body');
+body.innerHTML = '';
+const layout = layouts[currentLang];
+
+layout.forEach(row => {
+const rowEl = document.createElement('div');
+rowEl.className = 'kb-row';
+
+row.forEach(key => {
+const keyEl = document.createElement('div');
+keyEl.className = 'key';
+keyEl.innerText = key;
+
+if (key === '한/영' || key === 'CLEAR') keyEl.classList.add('special', 'wide');
+if (key === '⌫') keyEl.classList.add('delete', 'wide');
+if (key === 'SPACE') keyEl.classList.add('space');
+if (key === '검색 🔍' || key === 'SEARCH 🔍') keyEl.classList.add('enter');
+
+keyEl.onclick = () => handleInput(key);
+rowEl.appendChild(keyEl);
+});
+
+body.appendChild(rowEl);
+});
+}
+
+// 입력 처리
+function handleInput(key) {
+if (key === '한/영') {
+currentLang = currentLang === 'KO' ? 'EN' : 'KO';
+renderKeyboard();
+return;
+}
+
+if (key === 'CLEAR') {
+inputLetters = [];
+} else if (key === '⌫') {
+inputLetters.pop();
+} else if (key === 'SPACE') {
+inputLetters.push(' ');
+} else if (key === '검색 🔍' || key === 'SEARCH 🔍') {
+updateResults();
+return;
+} else {
+inputLetters.push(key);
+}
+
+const currentText = assembleHangul(inputLetters);
+document.getElementById('text-display').value = currentText;
+updateResults();
+}
+
+function updateResults() {
+const query = document.getElementById('text-display').value;
+const resultsContainer = document.getElementById('results-list');
+
+if (!query.trim()) {
+resultsContainer.innerHTML = '<div class="result-item">검색어를 입력해보세요.</div>';
+return;
+}
+
+resultsContainer.innerHTML = &lt;div class="result-item"&gt;🔍 "${query}" 유투브 검색 결과 1</div>
+<div class="result-item">🎬 "${query}" 관련 영상 추천&lt;/div&gt; &lt;div class="result-item"&gt;🎵 "${query}" 노래/음악 감상하기&lt;/div&gt;;
+}
+
+// 페이지 로드시 키보드 무조건 실행
+renderKeyboard();
+</script>
+</body>
+</html>
